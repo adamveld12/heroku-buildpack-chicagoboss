@@ -33,11 +33,15 @@ The Erlang/OTP release version that will be used to build and run your applicati
 
 Currently supported OTP versions:
 
-* OTP_R16B03-1 (the default)
-* OTP_R15B03-1
+* master (R17B pre)
+* master-pu (R16B pre)
 * OTP_R15B
 * OTP_R15B01
 * OTP_R15B02
+* OTP_R16B
+* OTP_R16B01
+* OTP_R16B02
+* OTP_R16B03
 
 To select the version for your app:
 get the version of OTP you developed with:
@@ -45,7 +49,7 @@ get the version of OTP you developed with:
     erl -eval 'erlang:display(erlang:system_info(otp_release)), halt().'  -noshell | sed "s/\"*//g"  > .preferred_otp_version
     $ git commit "Select XXX as preferred OTP version" .preferred_otp_version
 
-### Deploy your site
+### Build your Heroku App
 
     $ git push heroku master
 
