@@ -51,8 +51,10 @@ echo "-----> Cleaning depencies (remove .clean) to cache them"
     rm -Rf ${cache}/deps/*
 fi
 
-ln -sf ${cache}/deps ${build}/deps
-
+# rsync -ahSD --ignore-errors --force --delete ${cache}/deps/ ${build}/deps/
+#ln -sf ${cache}/deps ${build}/deps
+rm -Rf ${build}/deps/
+cp -r ${cache}/deps/ ${build}/deps/
 
 cd ${build}
 
@@ -79,5 +81,8 @@ fi
 cp ${bpdir}/opt/cb_config ./
 cp ${bpdir}/opt/start ./
 
-
+echo "-----> Caching dep builds"
+# rsync -ahSD --ignore-errors --force --delete ${build}/deps/ ${cache}/deps/
+rm -Rf ${cache}/deps/
+cp -r ${build}/deps/ ${cache}/deps/
 echo "-----> Build succeeded"
