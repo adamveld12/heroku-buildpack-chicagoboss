@@ -12,6 +12,13 @@ main([Src, Dest])->
   BossParams = dict:from_list(BossTerms),
   {ok, [AppName|_]} = dict:find(applications, BossParams),
 
+  case {ok, Adapter} = dict:find(db_adapter, BossParams) of
+    {ok, mongodb} -> ;
+    {ok, pgsql} -> {ok, {postgres, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(Url),
+  [User, Pass] = string:tokens(UserPass, ":")
+
+  end,
+  
   {ok, {postgres, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(Url),
   [User, Pass] = string:tokens(UserPass, ":"),
   HerokuSettings = [{port, HttpPort},{db_host, Host}, 

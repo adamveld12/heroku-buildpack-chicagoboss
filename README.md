@@ -1,5 +1,6 @@
 ## Heroku buildpack: ChicagoBoss
 
+
 This is a Heroku buildpack for applications written with the ChicagoBoss web framework (master branch or 0.9 when release).
 
 To select the Chicago Boss version you want to deploy, select the correct revision in your rebar.config :
@@ -13,6 +14,10 @@ To select the Chicago Boss version you want to deploy, select the correct revisi
 ```
 
 The buildpack will automatically provision a dev database and configure your application to use it.
+
+### Gotchas
+
+If you're running cb_admin or other apps, I couldn't get the CB app to work for whatever reason. Before you deploy, make sure to remove any traces of other boss apps from your boss.config and rebar.config before deploying.
 
 
 ### Configure your app
