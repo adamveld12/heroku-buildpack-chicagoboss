@@ -1,42 +1,51 @@
 #!/usr/bin/env escript
-%% -*- erlang -*-
+%% -*- erlang -*- 
 
-main([Src, Dest])->
-  {ok, [Terms]} = file:consult(Src),
-
-  Params = dict:from_list(Terms),
-
-  % boss params
-  {ok, BossTerms} = dict:find(boss, Params),
-  Url = os:getenv("DATABASE_URL"),
+main([Src, Dest]) ->
+  PostgresUrl = "DATABASE_URL",
+  MongoHQUrl = "MONGOHQ_URL",
   {HttpPort, _} = string:to_integer(os:getenv("PORT")),
-  BossParams = dict:from_list(BossTerms),
-  {ok, [AppName|_]} = dict:find(applications, BossParams),
 
+  % transform file into a dictionary
+  {ok, [Terms]} = file:consult(Src),
+  TermsDic = dict:from_list(Terms),
+  {ok, BossTerms} = dict:find(boss, TermsDic),
+  SrcBossConfig = dict:from_list(BossTerms),
+  io:format("~p~n", [BossTerms]),
 
-  case {ok, Adapter} = dict:find(db_adapter, BossParams) of
-    {ok, mongodb} -> {ok, {mongodb, UserPass, Host, DbPort, [$/ |DbName], _}} = http_uri:parse(Url);
-    {ok, pgsql} -> {ok, {postgres, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(Url), 
-                   [User, Pass] = string:tokens(UserPass, ":");
+  % database connection setup
+  {EnvVar, DatabaseType} = case dict:find(db_adapter, SrcBossConfig) of
+    {ok, mongodb} -> io:format("MongoDb configuration detected.~n"), {MongoHQUrl, mongodb};
+    {ok, pgsql} -> io:format("Postgres database configuration detected.~n"), {PostgresUrl, pgsql};
+    {_, Type} -> io:format("database type '~p' for key 'db_adapter' is not supported. Forcing Postgres.~n", [Type]), {PostgresUrl, pgsql}
   end,
-  
-  {ok, {postgres, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(Url),
-  [User, Pass] = string:tokens(UserPass, ":"),
+
+  % database connection string parsing
+  io:format("Looking up '~p' environment variable for connection string...~n", [EnvVar]),
+  Url = "mongodb://heroku:PJHpc9zEj9pBlTiZxS0oU90Tx0ZOJakjnBrjYP61BMIhZvhRA0ay3W2CgvCscKdc6G-Kt3_9WEdHfB7ERgd5yA@kahana.mongohq.com:10044/app26881461",
+  {ok, {_, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(Url),
+  [Username, Password] = string:tokens(UserPass, ":"),
   HerokuSettings = [{port, HttpPort},{db_host, Host}, 
-                    {db_port, DbPort}, {db_username, User},
-                    {db_password, Pass}, {db_database, DbName},
-                    {db_adapter, pgsql}],
+                    {db_port, DbPort}, {db_username, Username},
+                    {db_password, Password}, {db_database, DbName},
+                    {db_adapter, DatabaseType}],
   BossConfigured = lists:foldl(fun({K, V}, Acc)->
     dict:store(K, V, Acc)
-  end, BossParams, HerokuSettings),
-  Params2 = dict:store(boss, dict:to_list(BossConfigured), Params),
-  %lager params
-  Params3 = dict:store(lager, [{handlers,
-    [{lager_console_backend, info}]},
-    {crash_log, "priv/sasl/crash.log"}], Params2),
-  {ok, S} = file:open(Dest, write),
-  io:format(S, "~p.", [dict:to_list(Params3)]),
-  io:format("~s", [AppName]);
+  end, SrcBossConfig, HerokuSettings),
+  io:format("~p~n", [dict:to_list(BossConfigured)]),
+  CombinedConfig = dict:store(boss, dict:to_list(BossConfigured), TermsDic),
 
-main(_)->
+  %lager params
+  BossConfigOutput = dict:store(lager, [{handlers,
+    [{lager_console_backend, info}]},
+    {crash_log, "priv/sasl/crash.log"}], CombinedConfig),
+  io:format("Storing:~n~p~n", [dict:to_list(CombinedConfig)]),
+
+  {ok, S} = file:open(Dest, write),
+  io:format(S, "~p.", [dict:to_list(BossConfigOutput)]),
+  {ok, [AppName|_]} = dict:find(applications, SrcBossConfig),
+  io:format("~s's boss.config transformation finished.~n", [AppName]);
+
+main(_) ->
   io:format("usage: cb_config <src_config_file> <destination_config_file>~n").
+
