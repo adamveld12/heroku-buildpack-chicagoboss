@@ -22,7 +22,7 @@ main([Src, Dest]) ->
 
   % database connection string parsing
   io:format("Looking up '~p' environment variable for connection string...~n", [EnvVar]),
-  Url = "mongodb://heroku:PJHpc9zEj9pBlTiZxS0oU90Tx0ZOJakjnBrjYP61BMIhZvhRA0ay3W2CgvCscKdc6G-Kt3_9WEdHfB7ERgd5yA@kahana.mongohq.com:10044/app26881461",
+  Url = os:getenv(EnvVar),
   {ok, {_, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(Url),
   [Username, Password] = string:tokens(UserPass, ":"),
   HerokuSettings = [{port, HttpPort},{db_host, Host}, 
