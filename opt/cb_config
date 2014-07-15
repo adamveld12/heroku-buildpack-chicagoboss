@@ -11,7 +11,7 @@ main([Src, Dest]) ->
   TermsDic = dict:from_list(Terms),
   {ok, BossTerms} = dict:find(boss, TermsDic),
   SrcBossConfig = dict:from_list(BossTerms),
-  
+
   % database connection setup
   {EnvVar, DatabaseType} = case dict:find(db_adapter, SrcBossConfig) of
     {ok, mongodb} -> io:format("MongoDb configuration detected.~n"), {MongoHQUrl, mongodb};
@@ -31,7 +31,12 @@ main([Src, Dest]) ->
   BossConfigured = lists:foldl(fun({K, V}, Acc)->
     dict:store(K, V, Acc)
   end, SrcBossConfig, HerokuSettings),
-  CombinedConfig = dict:store(boss, dict:to_list(BossConfigured), TermsDic),
+
+  % rip out other applications since cb_admin seems to mess up routing on heroku
+  {ok, [AppName|_]} = dict:find(applications, SrcBossConfig),
+  StrippedAppName = dict:store(applications, [AppName], BossConfigured),
+  
+  CombinedConfig = dict:store(boss, dict:to_list(StrippedAppName), TermsDic),
 
   %lager params
   BossConfigOutput = dict:store(lager, [{handlers,
