@@ -11,8 +11,7 @@ main([Src, Dest]) ->
   TermsDic = dict:from_list(Terms),
   {ok, BossTerms} = dict:find(boss, TermsDic),
   SrcBossConfig = dict:from_list(BossTerms),
-  io:format("~p~n", [BossTerms]),
-
+  
   % database connection setup
   {EnvVar, DatabaseType} = case dict:find(db_adapter, SrcBossConfig) of
     {ok, mongodb} -> io:format("MongoDb configuration detected.~n"), {MongoHQUrl, mongodb};
@@ -32,14 +31,12 @@ main([Src, Dest]) ->
   BossConfigured = lists:foldl(fun({K, V}, Acc)->
     dict:store(K, V, Acc)
   end, SrcBossConfig, HerokuSettings),
-  io:format("~p~n", [dict:to_list(BossConfigured)]),
   CombinedConfig = dict:store(boss, dict:to_list(BossConfigured), TermsDic),
 
   %lager params
   BossConfigOutput = dict:store(lager, [{handlers,
     [{lager_console_backend, info}]},
     {crash_log, "priv/sasl/crash.log"}], CombinedConfig),
-  io:format("Storing:~n~p~n", [dict:to_list(CombinedConfig)]),
 
   {ok, S} = file:open(Dest, write),
   io:format(S, "~p.", [dict:to_list(BossConfigOutput)]),
