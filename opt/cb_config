@@ -11,7 +11,6 @@ main([Src, Dest]) ->
   TermsDic = dict:from_list(Terms),
   {ok, BossTerms} = dict:find(boss, TermsDic),
   SrcBossConfig = dict:from_list(BossTerms),
-  io:format("~p~n", [BossTerms]),
 
   % database connection setup
   {EnvVar, DatabaseType} = case dict:find(db_adapter, SrcBossConfig) of
@@ -22,7 +21,7 @@ main([Src, Dest]) ->
 
   % database connection string parsing
   io:format("Looking up '~p' environment variable for connection string...~n", [EnvVar]),
-  Url = "mongodb://heroku:PJHpc9zEj9pBlTiZxS0oU90Tx0ZOJakjnBrjYP61BMIhZvhRA0ay3W2CgvCscKdc6G-Kt3_9WEdHfB7ERgd5yA@kahana.mongohq.com:10044/app26881461",
+  Url = os:getenv(EnvVar),
   {ok, {_, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(Url),
   [Username, Password] = string:tokens(UserPass, ":"),
   HerokuSettings = [{port, HttpPort},{db_host, Host}, 
@@ -32,14 +31,17 @@ main([Src, Dest]) ->
   BossConfigured = lists:foldl(fun({K, V}, Acc)->
     dict:store(K, V, Acc)
   end, SrcBossConfig, HerokuSettings),
-  io:format("~p~n", [dict:to_list(BossConfigured)]),
-  CombinedConfig = dict:store(boss, dict:to_list(BossConfigured), TermsDic),
+
+  % rip out other applications since cb_admin seems to mess up routing on heroku
+  {ok, [AppName|_]} = dict:find(applications, SrcBossConfig),
+  StrippedAppName = dict:store(applications, [AppName], BossConfigured),
+  
+  CombinedConfig = dict:store(boss, dict:to_list(StrippedAppName), TermsDic),
 
   %lager params
   BossConfigOutput = dict:store(lager, [{handlers,
     [{lager_console_backend, info}]},
     {crash_log, "priv/sasl/crash.log"}], CombinedConfig),
-  io:format("Storing:~n~p~n", [dict:to_list(CombinedConfig)]),
 
   {ok, S} = file:open(Dest, write),
   io:format(S, "~p.", [dict:to_list(BossConfigOutput)]),
