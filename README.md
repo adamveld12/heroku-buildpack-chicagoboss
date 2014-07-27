@@ -1,4 +1,4 @@
-## Heroku buildpack: ChicagoBoss
+# Heroku buildpack: ChicagoBoss
 
 
 This is a Heroku buildpack for applications written with the ChicagoBoss web framework (master branch or 0.9 when release).
@@ -17,8 +17,13 @@ The buildpack will automatically provision a dev database and configure your app
 
 ### Gotchas
 
-If you're running cb_admin or other apps, I couldn't get the CB app to work for whatever reason. Before you deploy, make sure to remove any traces of other boss apps from your boss.config and rebar.config before deploying.
+##### You're running cb_admin or other apps
+Deploying with cb_admin wired up in the boss config will (for some reason I haven't determined yet) screw up the routing when its running on heroku. This means none of your routes will resolve correctly and they will error out. To remedy this, just remove it from your boss.config and rebar.config before you deploy your app.
 
+##### You're using the multi build pack
+Make sure you set a PATH variable in your config vars to the values from bin/release PATH: in the bin/release file. Doing this will allow the scripts to see the Erlang VM binaries.
+
+You will also want to add the postgresql addon (or mongoDB via mongoHQ) by hand since it seems like the release script doesn't run if you use multiple buildpacks. For postgres you will have to add a DATABASE_URL config var set to the connection string for your database instance.
 
 ### Configure your app
 
