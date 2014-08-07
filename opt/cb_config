@@ -1,10 +1,42 @@
 #!/usr/bin/env escript
 %% -*- erlang -*- 
 
+buildDbConfiguration(HttpPort, Host, DbPort, Username, Password, DbName, DatabaseType) ->
+    [{port, HttpPort},
+     {db_host, Host},
+     {db_port, DbPort},
+     {db_username, Username},
+     {db_password, Password},
+     {db_database, DbName},
+     {db_adapter, DatabaseType}].
+
+
+parseDB(mock, _, Port) -> buildDbConfiguration(Port, localhost, 1979, boss, boss, boss, mock);
+parseDB(DatabaseType, EnvVar, Port) ->
+    io:format("Looking up '~p' environment variable for connection string...~n", [EnvVar]),
+    {ok, {_, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(os:getenv(EnvVar)),
+    [Username, Password] = string:tokens(UserPass, ":"),
+    buildDbConfiguration(Port, Host, DbPort,Username, Password, DbName, DatabaseType).
+
+createDbConfiguration(SrcBossConfig, HttpPort) ->
+  % database connection setup
+  case dict:find(db_adapter, SrcBossConfig) of
+    {ok, mongodb} ->
+        io:format("MongoDb configuration detected.~n"),
+        parseDB(mongoDb,  "MONGOHQ_URL", HttpPort);
+    {ok, pgsql} ->
+      io:format("Postgres database configuration detected.~n"),
+      parseDB(pgsql, "DATABASE_URL", HttpPort);
+    {ok, mock} ->
+      io:format("Using in memory mock database.~n"),
+      parseDB(mock, null, HttpPort);
+    {_, Type} ->
+      io:format("database type '~p' for key 'db_adapter' is not supported. Forcing mock.~n", [Type]),
+      parseDB(mock, null, HttpPort)
+  end.
+
+
 main([Src, Dest]) ->
-  PostgresUrl = "DATABASE_URL",
-  MongoHQUrl = "MONGOHQ_URL",
-  {HttpPort, _} = string:to_integer(os:getenv("PORT")),
 
   % transform file into a dictionary
   {ok, [Terms]} = file:consult(Src),
@@ -12,25 +44,10 @@ main([Src, Dest]) ->
   {ok, BossTerms} = dict:find(boss, TermsDic),
   SrcBossConfig = dict:from_list(BossTerms),
 
-  % database connection setup
-  {EnvVar, DatabaseType} = case dict:find(db_adapter, SrcBossConfig) of
-    {ok, mongodb} -> io:format("MongoDb configuration detected.~n"), {MongoHQUrl, mongodb};
-    {ok, pgsql} -> io:format("Postgres database configuration detected.~n"), {PostgresUrl, pgsql};
-    {_, Type} -> io:format("database type '~p' for key 'db_adapter' is not supported. Forcing Postgres.~n", [Type]), {PostgresUrl, pgsql}
-  end,
-
-  % database connection string parsing
-  io:format("Looking up '~p' environment variable for connection string...~n", [EnvVar]),
-  Url = os:getenv(EnvVar),
-  {ok, {_, UserPass, Host, DbPort, [$/ | DbName], _}} = http_uri:parse(Url),
-  [Username, Password] = string:tokens(UserPass, ":"),
-  HerokuSettings = [{port, HttpPort},{db_host, Host}, 
-                    {db_port, DbPort}, {db_username, Username},
-                    {db_password, Password}, {db_database, DbName},
-                    {db_adapter, DatabaseType}],
+  {HttpPort, _} = string:to_integer(os:getenv("PORT")),
   BossConfigured = lists:foldl(fun({K, V}, Acc)->
     dict:store(K, V, Acc)
-  end, SrcBossConfig, HerokuSettings),
+  end, SrcBossConfig, createDbConfiguration(SrcBossConfig, HttpPort)),
 
   % rip out other applications since cb_admin seems to mess up routing on heroku
   {ok, [AppName|_]} = dict:find(applications, SrcBossConfig),
