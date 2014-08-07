@@ -23,7 +23,7 @@ createDbConfiguration(SrcBossConfig, HttpPort) ->
   case dict:find(db_adapter, SrcBossConfig) of
     {ok, mongodb} ->
         io:format("MongoDb configuration detected.~n"),
-        parseDB(mongoDb,  "MONGOHQ_URL", HttpPort);
+        parseDB(mongodb,  "MONGOHQ_URL", HttpPort);
     {ok, pgsql} ->
       io:format("Postgres database configuration detected.~n"),
       parseDB(pgsql, "DATABASE_URL", HttpPort);
