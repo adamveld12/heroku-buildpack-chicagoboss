@@ -18,7 +18,7 @@ The buildpack will automatically provision a dev database and configure your app
 ### Gotchas
 
 ##### You're running cb_admin or other apps
-Deploying with cb_admin wired up in the boss config will (for some reason I haven't determined yet) screw up the routing when its running on heroku. This means none of your routes will resolve correctly and they will error out. To remedy this, just remove it from your boss.config and rebar.config before you deploy your app.
+Deploying with cb_admin wired up in the boss config will (for some reason I haven't determined yet) screw up the routing when its running on heroku. This means none of your routes will resolve correctly and they will error out. The boss config transformer automatically removes all addons except for your app. This means that using addons isn't officially support at the moment.
 
 ##### You're using the multi build pack
 Make sure you set a PATH variable in your config vars to the values from bin/release PATH: in the bin/release file. Doing this will allow the scripts to see the Erlang VM binaries.
@@ -65,9 +65,17 @@ get the version of OTP you developed with:
 
 You may need to write a new commit and push if your code was already up to date.
 
-### 
+### Datastores
 
-Forces use of heroku postgresql database.
+This buildpack allows the use of the in-memory mock database, mongoDB and postgres by detecting the following keywords used in the boss.config: 
+
+Database  | Keyword | Env Var
+--------- | ------- | -------
+ ETS/Mock | mock    | N/A
+ Mongo DB | mongodb | MONGOHQ_URL
+ postgres | pgsql   | DATABASE_URL
+ 
+If you are using the mock database, be aware of the [memory constraints of heroku dynos and the consequences](https://devcenter.heroku.com/articles/dynos#memory-behavior)
 
 IMPORTANT: All file uploads go to the transient file system, meaning that everything is destroyed on each deploys. These assets should go to S3 or similar.
 
